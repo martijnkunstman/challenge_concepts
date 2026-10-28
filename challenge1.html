@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Challenge 1</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+  <style>
+    body {
+      margin: 0;
+      padding: 24px;
+      font-family: system-ui, sans-serif;
+      background: #f4f4f4;
+    }
+    h1 {
+      font-size: 1.5rem;
+      max-width: 1200px;
+      margin: 0 auto 24px;
+    }
+    .codes {
+      display: flex;
+      gap: 24px;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    .codes pre {
+      flex: 1;
+      margin: 0;
+      min-width: 0;
+    }
+    .codes code {
+      border-radius: 8px;
+      font-size: 14px;
+    }
+    @media (max-width: 800px) {
+      .codes { flex-direction: column; }
+    }
+  </style>
+</head>
+<body>
+
+<h1>Welke driehoek en welke boom wordt er zichtbaar als je deze scripts uitvoert m.b.v. de p5.js library?</h1>
+
+<div class="codes">
+<pre><code class="language-javascript">let hoeken;
+let x, y;
+function setup() {
+  createCanvas(800, 800);
+  background(0);
+  stroke(255);
+  hoeken = [
+    createVector(400, 50),
+    createVector(50, 750),
+    createVector(750, 750)
+  ];
+  x = random(width);
+  y = random(height);
+}
+function draw() {
+  for (let i = 0; i &lt; 20; i++) {
+    let h = random(hoeken);
+    x = (x + h.x) / 2;
+    y = (y + h.y) / 2;
+    point(x, y);
+  }
+}</code></pre>
+
+<pre><code class="language-javascript">function setup() {
+  createCanvas(800, 800);
+  background(0);
+  stroke(255);
+  noFill();
+  noLoop();
+  translate(340, 750);
+  recursiveFunction(120);
+}
+function wacht(ms) {
+  return new Promise(klaar =&gt; setTimeout(klaar, ms));
+}
+async function recursiveFunction(s) {
+  if (s &lt; 5) return;
+  rect(0, -s, s, s);
+  await wacht(10);
+  translate(0, -s);
+  let k = s / sqrt(2);
+  push();
+  rotate(-PI / 4);
+  await recursiveFunction(k);
+  pop();
+  push();
+  translate(s / 2, -s / 2);
+  rotate(PI / 4);
+  await recursiveFunction(k);
+  pop();
+}</code></pre>
+</div>
+
+<script>hljs.highlightAll();</script>
+</body>
+</html>

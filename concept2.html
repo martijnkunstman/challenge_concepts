@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Pythagoras Tree</title>
+  <script src="https://cdn.jsdelivr.net/npm/p5@1.9.4/lib/p5.min.js"></script>
+</head>
+<body>
+<script>
+function setup() {
+  createCanvas(800, 800);
+  background(0);
+  stroke(255);
+  noFill();
+  noLoop();
+  translate(340, 750);
+  recursiveFunction(120);
+}
+function wacht(ms) {
+  return new Promise(klaar => setTimeout(klaar, ms));
+}
+async function recursiveFunction(s) {
+  if (s < 5) return;
+  rect(0, -s, s, s);
+  await wacht(10); 
+  translate(0, -s); 
+  let k = s / sqrt(2); 
+  push();
+  rotate(-PI / 4);
+  await recursiveFunction(k);
+  pop();
+  push();
+  translate(s / 2, -s / 2);
+  rotate(PI / 4);
+  await recursiveFunction(k);
+  pop();
+}
+</script>
+</body>
+</html>
