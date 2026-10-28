@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="utf-8">
+  <title>Challenge 3</title>
+  <style>
+    body { margin: 0; padding: 16px 20px; background: #111; color: #eee; font-family: system-ui, sans-serif; }
+    #boven { width: 884px; margin: 0 auto 12px; }
+    h1 { font-size: 1.15rem; margin: 0 0 10px; line-height: 1.4; }
+    #keuzes { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; }
+    select, button { font: inherit; padding: 4px 8px; border-radius: 6px; }
+    button { background: #ffd54f; border: 0; cursor: pointer; font-weight: bold; }
+    #melding { min-height: 1.4em; margin: 8px 0 0; color: #ff8a80; }
+    #speelveld { position: relative; width: 884px; height: 604px; margin: 0 auto; }
+    canvas { position: absolute; left: 140px; top: 0; }
+    figure { position: absolute; width: 120px; margin: 0; text-align: center; transition: opacity 0.5s; }
+    figure img { width: 100px; height: 100px; object-fit: contain; border: 3px solid transparent; border-radius: 8px; }
+    figcaption { font-size: 14px; }
+    .gevonden img { border-color: #ffd54f; }
+    .fout { opacity: 0.3; }
+    #overlay {
+      position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+      background: rgba(0, 0, 0, 0.65); color: #ffd54f; font-size: 72px; font-weight: bold;
+      text-shadow: 0 0 20px #000; opacity: 0; pointer-events: none; transition: opacity 1s;
+    }
+    #overlay.zichtbaar { opacity: 1; pointer-events: auto; cursor: pointer; }
+  </style>
+</head>
+<body>
+
+<div id="boven">
+  <h1>Welk zaadje dat het antwoord op alles is leidt via het juiste pathfinding algoritme naar de goede uitgang?
+      En wat is dan het antwoord dat zichtbaar wordt?</h1>
+  <div id="keuzes">
+    <label>Zaadje (seed): <select id="zaadje"></select></label>
+    <label>Algoritme:
+      <select id="algoritme">
+        <option value="gretig">Greedy</option>
+        <option value="dijkstra">Dijkstra</option>
+        <option value="willekeurig">Random walk</option>
+      </select>
+    </label>
+    <button id="start">Start</button>
+  </div>
+  <p id="melding"></p>
+</div>
+
+<div id="speelveld">
+  <canvas id="doolhof" width="604" height="604"></canvas>
+  <div id="overlay">This is the way!</div>
+</div>
+
+<script>
+const N = 25;           // aantal cellen per rij en kolom
+const S = 24;           // grootte van een cel in pixels (25 * 24 = 600)
+const MANDO = 2;        // de uitgang waar de Mandalorian staat
+let seed;
+
+const canvas = document.getElementById('doolhof');
+const ctx = canvas.getContext('2d');
+ctx.translate(2, 2);    // zodat de buitenmuren helemaal zichtbaar zijn
+
+// random getal tussen 0 en 1 op basis van de seed (mulberry32)
+function random() {
+  seed = (seed + 0x6D2B79F5) | 0;
+  let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+  t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+  return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+}
+
+// richtingen: boven, rechts, onder, links
+const richtingen = [[0, -1], [1, 0], [0, 1], [-1, 0]];
+
+// maak een raster met een startwaarde in elke cel
+function raster(waarde) {
+  return Array.from({ length: N }, () => Array.from({ length: N }, waarde));
+}
+
+let muren;
+let goed;               // welke uitgang bereikbaar is
+
+// zet de muur tussen cel a en buurcel b aan of uit
+function zetMuur(a, b, aan) {
+  const d = richtingen.findIndex(([dx, dy]) => a[0] + dx === b[0] && a[1] + dy === b[1]);
+  muren[a[1]][a[0]][d] = aan;
+  muren[b[1]][b[0]][(d + 2) % 4] = aan;
+}
+
+// ingang links, drie uitgangen rechts
+const ingang = [0, 12];
+const uitgangen = [[N - 1, 3], [N - 1, 12], [N - 1, 21]];
+
+// geeft het nummer van de uitgang op cel c, of -1
+function welkeUitgang(c) {
+  return uitgangen.findIndex(([x, y]) => x === c[0] && y === c[1]);
+}
+
+// alle buurcellen waar geen muur tussen zit
+function openBuren([x, y]) {
+  const buren = [];
+  for (let d = 0; d < 4; d++) {
+    const nx = x + richtingen[d][0], ny = y + richtingen[d][1];
+    if (!muren[y][x][d] && nx >= 0 && ny >= 0 && nx < N && ny < N) buren.push([nx, ny]);
+  }
+  return buren;
+}
+
+// ---------- 1. doolhof maken (depth-first backtracker) ----------
+function maakDoolhof(zaadje) {
+  seed = zaadje;
+  muren = raster(() => [true, true, true, true]);
+
+  const bezocht = raster(() => false);
+  const stapel = [[0, 0]];
+  bezocht[0][0] = true;
+
+  while (stapel.length > 0) {
+    const [x, y] = stapel[stapel.length - 1];
+    const buren = [];
+    for (const [dx, dy] of richtingen) {
+      const nx = x + dx, ny = y + dy;
+      if (nx >= 0 && ny >= 0 && nx < N && ny < N && !bezocht[ny][nx]) buren.push([nx, ny]);
+    }
+    if (buren.length === 0) {
+      stapel.pop();                                 // doodlopend: stap terug
+      continue;
+    }
+    const buur = buren[Math.floor(random() * buren.length)];
+    zetMuur([x, y], buur, false);                   // breek de muur door
+    bezocht[buur[1]][buur[0]] = true;
+    stapel.push(buur);
+  }
+
+  muren[ingang[1]][ingang[0]][3] = false;
+  for (const [x, y] of uitgangen) muren[y][x][1] = false;
+
+  goed = zaadje % 11 === 9 ? MANDO : Math.floor(random() * 2);
+
+  // Er is precies één weg tussen twee cellen. Door één muur terug te zetten
+  // op de weg naar een foute uitgang, is die niet meer te bereiken.
+  uitgangen.forEach((uitgang, i) => {
+    if (i === goed) return;
+    const r = dijkstra(ingang);
+    if (r.afstand[uitgang[1]][uitgang[0]] === Infinity) return;
+    const fout = pad(r.vorige, uitgang);
+    const juist = pad(r.vorige, uitgangen[goed]);
+    let splits = 0;
+    while (splits < juist.length && splits < fout.length && fout[splits][0] === juist[splits][0] && fout[splits][1] === juist[splits][1]) splits++;
+    if (splits === fout.length) {                   // foute uitgang ligt op de juiste weg:
+      muren[uitgang[1]][uitgang[0]][1] = true;      // dan sluiten we die uitgang af
+      return;
+    }
+    const k = Math.floor((splits - 1 + fout.length - 1) / 2);   // ergens halverwege de foute tak
+    zetMuur(fout[k], fout[k + 1], true);
+  });
+}
+
+// ---------- 2. de drie zoekalgoritmes ----------
+function dijkstra(start) {
+  const afstand = raster(() => Infinity);
+  const vorige = raster(() => null);
+  const volgorde = [];                              // in welke volgorde cellen bekeken worden
+  const open = [start];
+  afstand[start[1]][start[0]] = 0;
+
+  while (open.length > 0) {
+    // pak de open cel met de kleinste afstand
+    let best = 0;
+    for (let i = 1; i < open.length; i++) {
+      if (afstand[open[i][1]][open[i][0]] < afstand[open[best][1]][open[best][0]]) best = i;
+    }
+    const cel = open.splice(best, 1)[0];
+    volgorde.push(cel);
+
+    for (const [nx, ny] of openBuren(cel)) {
+      if (afstand[cel[1]][cel[0]] + 1 < afstand[ny][nx]) {
+        afstand[ny][nx] = afstand[cel[1]][cel[0]] + 1;
+        vorige[ny][nx] = cel;
+        open.push([nx, ny]);
+      }
+    }
+  }
+  return { afstand, vorige, volgorde };
+}
+
+// loop terug van het doel naar de start
+function pad(vorige, doel) {
+  const p = [];
+  for (let c = doel; c; c = vorige[c[1]][c[0]]) p.unshift(c);
+  return p;
+}
+
+function zoekDijkstra() {
+  const r = dijkstra(ingang);
+  const doel = uitgangen[goed];
+  const eind = r.volgorde.findIndex(c => welkeUitgang(c) === goed) + 1;
+  return { volgorde: r.volgorde.slice(0, eind), pad: pad(r.vorige, doel), uitgang: goed };
+}
+
+// gaat steeds naar de buur die het meest naar rechts ligt, maar kan nooit terug
+function zoekGretig() {
+  const bezocht = raster(() => false);
+  let c = ingang;
+  const route = [c];
+  bezocht[c[1]][c[0]] = true;
+  while (welkeUitgang(c) < 0) {
+    const buren = openBuren(c).filter(([x, y]) => !bezocht[y][x]);
+    if (buren.length === 0) break;                  // vastgelopen
+    buren.sort((a, b) => b[0] - a[0]);
+    c = buren[0];
+    bezocht[c[1]][c[0]] = true;
+    route.push(c);
+  }
+  return { volgorde: route, pad: route, uitgang: welkeUitgang(c) };
+}
+
+// loopt willekeurig rond, met een maximum aantal stappen
+function zoekWillekeurig() {
+  let c = ingang;
+  const route = [c];
+  for (let i = 0; i < 3000 && welkeUitgang(c) < 0; i++) {
+    const buren = openBuren(c);
+    c = buren[Math.floor(random() * buren.length)];
+    route.push(c);
+  }
+  return { volgorde: route, pad: [], uitgang: welkeUitgang(c) };
+}
+
+// ---------- 3. tekenen ----------
+let r = { volgorde: [], pad: [], uitgang: -1 };
+let zoekStap = 0;
+let padStap = 0;
+
+function teken() {
+  ctx.fillStyle = '#111';
+  ctx.fillRect(-2, -2, canvas.width, canvas.height);
+
+  // bekeken cellen, de kleur verloopt van rood naar paars
+  for (let i = 0; i < zoekStap; i++) {
+    const [x, y] = r.volgorde[i];
+    ctx.fillStyle = `hsl(${i / r.volgorde.length * 300}, 60%, 30%)`;
+    ctx.fillRect(x * S, y * S, S, S);
+  }
+
+  // de gevonden route als gele lijn door het midden van de cellen
+  if (padStap > 0) {
+    ctx.strokeStyle = '#ffd54f';
+    ctx.lineWidth = 6;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(-2, ingang[1] * S + S / 2);
+    for (let i = 0; i < padStap; i++) ctx.lineTo(r.pad[i][0] * S + S / 2, r.pad[i][1] * S + S / 2);
+    if (padStap === r.pad.length && r.uitgang >= 0) ctx.lineTo(N * S, uitgangen[r.uitgang][1] * S + S / 2);
+    ctx.stroke();
+  }
+
+  // muren
+  ctx.strokeStyle = '#fff';
+  ctx.lineWidth = 2;
+  ctx.lineCap = 'square';
+  ctx.beginPath();
+  for (let y = 0; y < N; y++) {
+    for (let x = 0; x < N; x++) {
+      const m = muren[y][x], px = x * S, py = y * S;
+      if (m[0]) { ctx.moveTo(px, py); ctx.lineTo(px + S, py); }
+      if (m[1]) { ctx.moveTo(px + S, py); ctx.lineTo(px + S, py + S); }
+      if (m[2]) { ctx.moveTo(px, py + S); ctx.lineTo(px + S, py + S); }
+      if (m[3]) { ctx.moveTo(px, py); ctx.lineTo(px, py + S); }
+    }
+  }
+  ctx.stroke();
+}
+
+// ---------- 4. afbeeldingen ----------
+const speelveld = document.getElementById('speelveld');
+const namen = ['Darth Vader', 'Jabba', 'Mandalorian'];
+
+function plaatje(bestand, naam, links, rij) {
+  const f = document.createElement('figure');
+  f.innerHTML = `<img src="img/${bestand}" alt="${naam}"><figcaption>${naam}</figcaption>`;
+  f.style.left = links + 'px';
+  f.style.top = (rij * S + S / 2 - 53) + 'px';
+  speelveld.insertBefore(f, overlay);
+  return f;
+}
+
+const overlay = document.getElementById('overlay');
+plaatje('grogu.svg', 'Grogu', 0, ingang[1]);
+const plaatjes = ['vader.svg', 'jabba.svg', 'mandalorian.svg'].map((bestand, i) => plaatje(bestand, namen[i], 764, uitgangen[i][1]));
+
+// ---------- 5. bediening ----------
+const kiesZaadje = document.getElementById('zaadje');
+const kiesAlgoritme = document.getElementById('algoritme');
+const melding = document.getElementById('melding');
+for (let z = 40; z <= 50; z++) kiesZaadje.add(new Option(z, z));
+
+let ronde = 0;          // zodat een oude animatie stopt als je opnieuw start
+
+function reset() {
+  ronde++;
+  maakDoolhof(Number(kiesZaadje.value));
+  r = { volgorde: [], pad: [], uitgang: -1 };
+  zoekStap = padStap = 0;
+  melding.textContent = '';
+  overlay.classList.remove('zichtbaar');
+  plaatjes.forEach(f => f.className = '');
+  teken();
+}
+
+function start() {
+  reset();
+  const algoritme = kiesAlgoritme.value;
+  if (algoritme === 'dijkstra') r = zoekDijkstra();
+  if (algoritme === 'gretig') r = zoekGretig();
+  if (algoritme === 'willekeurig') r = zoekWillekeurig();
+  const snelheid = algoritme === 'willekeurig' ? 10 : 2;
+  const mijnRonde = ronde;
+
+  function animeer() {
+    if (mijnRonde !== ronde) return;
+    if (zoekStap < r.volgorde.length) zoekStap = Math.min(zoekStap + snelheid, r.volgorde.length);
+    else if (padStap < r.pad.length) padStap++;
+    else { toonUitkomst(algoritme); return; }
+    teken();
+    requestAnimationFrame(animeer);
+  }
+  requestAnimationFrame(animeer);
+}
+
+function toonUitkomst(algoritme) {
+  plaatjes.forEach((f, i) => f.classList.add(i === r.uitgang ? 'gevonden' : 'fout'));
+  if (r.uitgang === MANDO && algoritme === 'dijkstra') overlay.classList.add('zichtbaar');
+  else if (r.uitgang < 0) melding.textContent = 'Verdwaald! Dit algoritme vindt de uitgang niet.';
+  else if (r.uitgang === MANDO) melding.textContent = 'Je bent er, maar niet via het juiste algoritme.';
+  else melding.textContent = `Oei, je komt uit bij ${namen[r.uitgang]}. Dat is niet de weg.`;
+}
+
+kiesZaadje.addEventListener('change', reset);
+kiesAlgoritme.addEventListener('change', reset);
+document.getElementById('start').addEventListener('click', start);
+overlay.addEventListener('click', () => overlay.classList.remove('zichtbaar'));
+
+// begin altijd op zaadje 40 en het eerste algoritme, ook na herladen
+kiesZaadje.value = '40';
+kiesAlgoritme.selectedIndex = 0;
+reset();
+</script>
+</body>
+</html>
