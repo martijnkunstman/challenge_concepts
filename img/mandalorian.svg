@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100">
+  <rect width="100" height="100" rx="12" fill="#3d4f5c"/>
+  <!-- shoulders -->
+  <path d="M14 100 Q16 80 34 78 L66 78 Q84 80 86 100 Z" fill="#8a8f94"/>
+  <!-- helmet -->
+  <path d="M26 30 Q26 10 50 10 Q74 10 74 30 L74 70 Q74 80 64 80 L36 80 Q26 80 26 70 Z" fill="#c9cfd4"/>
+  <path d="M30 30 Q32 14 50 14 Q60 14 66 20" stroke="#eef2f5" stroke-width="3" fill="none" stroke-linecap="round"/>
+  <!-- T-visor -->
+  <path d="M32 36 L68 36 L68 46 L56 46 L56 70 L44 70 L44 46 L32 46 Z" fill="#121417"/>
+  <!-- cheek lines -->
+  <path d="M34 54 L40 66 M66 54 L60 66" stroke="#9aa1a7" stroke-width="2" stroke-linecap="round"/>
+</svg>

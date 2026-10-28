@@ -5,7 +5,7 @@
   <title>Doolhof - Dijkstra</title>
   <style>
     body { margin: 0; padding: 20px; background: #111; color: #eee; font-family: system-ui, sans-serif; }
-    #speelveld { position: relative; width: 1084px; height: 804px; margin: 0 auto; }
+    #speelveld { position: relative; width: 884px; height: 604px; margin: 0 auto; }
     canvas { position: absolute; left: 140px; top: 0; }
     figure { position: absolute; width: 120px; margin: 0; text-align: center; transition: opacity 0.5s; }
     figure img { width: 100px; height: 100px; object-fit: contain; border: 3px solid transparent; border-radius: 8px; }
@@ -17,12 +17,12 @@
 <body>
 
 <div id="speelveld">
-  <canvas id="doolhof" width="804" height="804"></canvas>
+  <canvas id="doolhof" width="604" height="604"></canvas>
 </div>
 
 <script>
 const N = 25;           // aantal cellen per rij en kolom
-const S = 32;           // grootte van een cel in pixels (25 * 32 = 800)
+const S = 24;           // grootte van een cel in pixels (25 * 24 = 600)
 let seed = 42;          // met dezelfde seed krijg je steeds hetzelfde doolhof
 
 const canvas = document.getElementById('doolhof');
@@ -165,7 +165,7 @@ function teken() {
   // het kortste pad als gele lijn door het midden van de cellen
   if (padStap > 0) {
     ctx.strokeStyle = '#ffd54f';
-    ctx.lineWidth = 8;
+    ctx.lineWidth = 6;
     ctx.lineCap = 'round';
     ctx.beginPath();
     ctx.moveTo(-2, ingang[1] * S + S / 2);
@@ -212,11 +212,11 @@ function plaatje(bestand, naam, links, rij) {
   return f;
 }
 
-plaatje('grogu.png', 'Grogu', 0, ingang[1]);
-const slechteriken = [['vader.png', 'Darth Vader'], ['jabba.png', 'Jabba']];
+plaatje('grogu.svg', 'Grogu', 0, ingang[1]);
+const slechteriken = [['vader.svg', 'Darth Vader'], ['jabba.svg', 'Jabba']];
 uitgangen.forEach(([x, y], i) => {
-  const [bestand, naam] = i === goed ? ['mandalorian.png', 'Mandalorian'] : slechteriken.shift();
-  plaatjes.push(plaatje(bestand, naam, 964, y));
+  const [bestand, naam] = i === goed ? ['mandalorian.svg', 'Mandalorian'] : slechteriken.shift();
+  plaatjes.push(plaatje(bestand, naam, 764, y));
 });
 
 function toonUitkomst() {
